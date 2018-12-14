@@ -35,7 +35,6 @@ func New(opts ...Option) (*Executor, error) {
 		context:  make(map[string]Context),
 		entries:  []*Entry{},
 		emu:      sync.RWMutex{},
-		errors:   make(chan error, 100),
 		stop:     make(chan struct{}),
 	}
 
@@ -44,6 +43,14 @@ func New(opts ...Option) (*Executor, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if e.errors == nil {
+		e.errors = make(chan error, 100)
+	}
+
+	if e.log == nil {
+		e.log = make(chan Log, 100)
 	}
 
 	if e.period == 0 {
@@ -71,6 +78,7 @@ type Executor struct {
 	period time.Duration
 	errors chan error
 	stop   chan struct{}
+	log    chan Log
 }
 
 // Register a job type
@@ -185,6 +193,16 @@ func (e *Executor) Remove(entry *Entry) error {
 	return e.tab.Remove(entry)
 }
 
+// Log returns the log channel
+func (e *Executor) Log() chan Log {
+	return e.log
+}
+
+// Err returns the error channel
+func (e *Executor) Err() chan error {
+	return e.errors
+}
+
 // Cancel a specific entry while running. If it is not running, Cancel is a noop.
 func (e *Executor) Cancel(ID string) {
 	e.cmu.RLock()
@@ -259,5 +277,16 @@ func (e *Executor) runJob(job Job, entry *Entry, now time.Time) {
 
 	if err != nil {
 		e.errors <- err
+	}
+
+	log := newLog(*entry, now)
+	log.Ended = time.Now()
+	log.Err = err
+	select {
+	case e.log <- log:
+		return
+	default:
+		<-e.log
+		e.log <- log
 	}
 }

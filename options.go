@@ -17,3 +17,19 @@ func WithTab(tab Tab) Option {
 		return nil
 	}
 }
+
+// WithLog sets a log channel
+func WithLog(log chan Log) Option {
+	return func(e *Executor) error {
+		e.log = log
+		return nil
+	}
+}
+
+// WithError sets an error channel
+func WithError(errors chan error) Option {
+	return func(e *Executor) error {
+		e.errors = errors
+		return nil
+	}
+}
