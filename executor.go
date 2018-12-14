@@ -198,10 +198,10 @@ func (e *Executor) Cancel(ID string) {
 }
 
 func (e *Executor) runJob(job Job, entry *Entry, now time.Time) {
+	ctx := e.context[entry.ID]
 
 	switch entry.Policy {
 	case SingleInstanceOnly:
-		ctx := e.context[entry.ID]
 		ctx.Cancel()
 
 		// wait for the job to stop running
@@ -209,10 +209,8 @@ func (e *Executor) runJob(job Job, entry *Entry, now time.Time) {
 			runtime.Gosched()
 		}
 	case CancelRunning:
-		ctx := e.context[entry.ID]
 		ctx.Cancel()
 	case SkipIfRunning:
-		ctx := e.context[entry.ID]
 		if ctx.Running() {
 			return
 		}
@@ -221,7 +219,7 @@ func (e *Executor) runJob(job Job, entry *Entry, now time.Time) {
 	}
 
 	back := backoff.NewExponentialBackOff()
-	ctx := FromContext(context.Background(), *entry)
+	ctx = FromContext(context.Background(), *entry)
 	e.cmu.Lock()
 	e.context[entry.ID] = ctx
 	e.cmu.Unlock()
