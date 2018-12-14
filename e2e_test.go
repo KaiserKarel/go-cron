@@ -39,6 +39,7 @@ func TestExecutor_3s(t *testing.T) {
 
 	started := time.Now()
 	go executor.Start()
+	defer executor.StopAll()
 
 	for i := 0; i < 4; i++ {
 		assert.Equal(t, "test", <-watchchan)

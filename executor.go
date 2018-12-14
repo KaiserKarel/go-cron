@@ -126,14 +126,15 @@ func (e *Executor) Start() error {
 						return ErrJobNotExists
 					}
 
-					minval := now.Add(-e.period/2 - itertime)
-					maxval := now.Add(e.period/2 - itertime)
-
-					if entry.nextRun.IsZero() {
-						entry.nextRun = entry.MustNext(now)
+					if entry.lastRun.IsZero() {
+						entry.lastRun = now
 					}
 
-					if entry.nextRun.Before(maxval) && entry.nextRun.After(minval) {
+					if entry.nextRun.IsZero() {
+						entry.nextRun = entry.MustNext(entry.lastRun)
+					}
+
+					if entry.nextRun.Before(now) {
 						entry.lastRun = now
 						entry.nextRun = entry.MustNext(now)
 						go e.runJob(job, entry, now)
@@ -198,24 +199,29 @@ func (e *Executor) Cancel(ID string) {
 }
 
 func (e *Executor) runJob(job Job, entry *Entry, now time.Time) {
-	ctx := e.context[entry.ID]
+	e.cmu.RLock()
+	ctx, exists := e.context[entry.ID]
+	e.cmu.RUnlock()
 
-	switch entry.Policy {
-	case SingleInstanceOnly:
-		ctx.Cancel()
+	// if the ctx does not exist, this is the first job run
+	if exists {
+		switch entry.Policy {
+		case SingleInstanceOnly:
+			ctx.Cancel()
 
-		// wait for the job to stop running
-		for ctx.Running() {
-			runtime.Gosched()
+			// wait for the job to stop running
+			for ctx.Running() {
+				runtime.Gosched()
+			}
+		case CancelRunning:
+			ctx.Cancel()
+		case SkipIfRunning:
+			if ctx.Running() {
+				return
+			}
+		default:
+			break
 		}
-	case CancelRunning:
-		ctx.Cancel()
-	case SkipIfRunning:
-		if ctx.Running() {
-			return
-		}
-	default:
-		break
 	}
 
 	back := backoff.NewExponentialBackOff()
