@@ -4,13 +4,21 @@ import (
 	"time"
 )
 
+// RunPolicy defines running behaviour of an entry.
 type RunPolicy int
 
 const (
-	RunParallel        RunPolicy = 0
-	CancelRunning      RunPolicy = 1
+	// RunParallel runs an entry while ignoring other running instances.
+	RunParallel RunPolicy = 0
+
+	// CancelRunning cancels previously running entries before starting.
+	CancelRunning RunPolicy = 1
+
+	// SingleInstanceOnly cancels previously running entries, awaits cancellation confirmation before starting.
 	SingleInstanceOnly RunPolicy = 2
-	SkipIfRunning      RunPolicy = 3
+
+	// SkipIfRunning ignores the entry if another instance is currently running
+	SkipIfRunning RunPolicy = 3
 )
 
 // Entry specifies a single (crontab) entry, a function which is executed periodically.
@@ -54,6 +62,7 @@ func (e Entry) MustNext(t time.Time) time.Time {
 	return time
 }
 
+// ByTimeAsc defines ordering for []*Entry
 type ByTimeAsc []*Entry
 
 func (b ByTimeAsc) Len() int { return len(b) }
@@ -66,7 +75,7 @@ func (b ByTimeAsc) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 // Unique ensures all items are unique by removing entries with duplicate IDs, this destorys ordering.
 func (b ByTimeAsc) Unique() ByTimeAsc {
 	set := make(map[string]struct{})
-	var uniques ByTimeAsc = b
+	var uniques = b
 
 	for i, entry := range b {
 		if _, exists := set[entry.ID]; exists {

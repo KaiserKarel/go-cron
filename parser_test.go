@@ -1,3 +1,5 @@
+// from https://github.com/robfig/cron/blob/master/parser_test.go
+
 package cron
 
 import (

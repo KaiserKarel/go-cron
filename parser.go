@@ -1,6 +1,6 @@
-package cron
-
 // from https://github.com/robfig/cron/blob/master/parser.go
+
+package cron
 
 import (
 	"fmt"

@@ -1,6 +1,6 @@
-package cron
-
 // origin: https://github.com/robfig/cron/blob/master/spec.go
+
+package cron
 
 import "time"
 

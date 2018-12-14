@@ -47,6 +47,7 @@ func (c *ctx) Entry() Entry {
 	return c.entry
 }
 
+// FromContext creates a cron Context from existing contexts and the entry. The contexts defaults to a running status of False.
 func FromContext(ct context.Context, entry Entry) Context {
 	ct, cf := context.WithCancel(ct)
 

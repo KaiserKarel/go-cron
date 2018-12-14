@@ -1,3 +1,5 @@
+// origin: https://github.com/robfig/cron/blob/master/schedule.go
+
 package cron
 
 import "time"
