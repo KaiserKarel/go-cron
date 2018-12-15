@@ -2,22 +2,19 @@ package cron
 
 import (
 	"context"
-	"errors"
 )
 
-var (
-	// ErrRepeatable indicates the job should be retried immediately.
-	ErrRepeatable = errors.New("temporary error")
+// ErrRepeatable indicates the job should be retried immediately.
+type ErrRepeatable error
 
-	// ErrRepeatNextCron indicates the job may be retried when the schedule allows.
-	ErrRepeatNextCron = errors.New("attempt at next cron")
+// ErrRepeatNextCron indicates the job may be retried when the schedule allows.
+type ErrRepeatNextCron error
 
-	// ErrPermanentFailure indicates the cron should be removed from the schedule.
-	ErrPermanentFailure = errors.New("never repeat this cron")
+// ErrPermanentFailure indicates the cron should be removed from the schedule.
+type ErrPermanentFailure error
 
-	// ErrCronFailure indicates the cron executor should cease running.
-	ErrCronFailure = errors.New("cease all cron operations")
-)
+// ErrCronFailure indicates the cron executor should cease running.
+type ErrCronFailure error
 
 // Routine is a registerable function. Passed arguments are obtained from the Entry.
 type Routine func(ctx context.Context, args map[string]interface{}) error

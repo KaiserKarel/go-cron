@@ -305,7 +305,7 @@ func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
 			err = routine(ctx, entry.Args)
 			ctx.Cancel()
 
-			switch err {
+			switch err.(type) {
 			case ErrRepeatable:
 				return err
 			case ErrRepeatNextCron:

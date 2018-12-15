@@ -1,5 +1,3 @@
-//go:generate mockgen -destination=tab_mock.go -package=cron github.com/kaiserkarel/go-cron Tab
-
 package cron
 
 import "sync"
