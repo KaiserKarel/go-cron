@@ -19,5 +19,5 @@ var (
 	ErrCronFailure = errors.New("cease all cron operations")
 )
 
-// Job is a registerable function. Passed arguments are obtained from the Entry.
-type Job func(ctx context.Context, args map[string]interface{}) error
+// Routine is a registerable function. Passed arguments are obtained from the Entry.
+type Routine func(ctx context.Context, args map[string]interface{}) error

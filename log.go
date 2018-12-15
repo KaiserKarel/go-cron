@@ -1,6 +1,8 @@
 package cron
 
-import "time"
+import (
+	"time"
+)
 
 // Log is emmitted after a job has run
 type Log struct {
@@ -8,6 +10,7 @@ type Log struct {
 	Entry   Entry
 	Started time.Time
 	Ended   time.Time
+	Report  string
 	Err     error
 }
 

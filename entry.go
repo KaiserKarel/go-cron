@@ -29,25 +29,36 @@ type Entry struct {
 	// cron expression
 	Expression string
 
-	// Job-identifier to be executed
-	Job string
+	// Routine-identifier to be executed
+	Routine string
 
 	// Arguments passed to the Job. Arguments should be JSON serializeable if a persistent store is used.
 	Args map[string]interface{}
 
+	// Location overrides the executors location if provided. Not required.
+	Location *time.Location
+
 	Policy RunPolicy
 
-	nextRun time.Time
-	lastRun time.Time
+	NextRun     time.Time
+	PreviousRun time.Time
 }
 
 // Next returns the time when the entry should be scheduled next.
+//
+// If the entry has it's own location,
 func (e Entry) Next(t time.Time) (time.Time, error) {
 	schedule, err := defaultParser.Parse(e.Expression)
 
 	if err != nil {
 		return time.Time{}, err
 
+	}
+
+	if e.Location != nil {
+		if t.Location() != e.Location {
+			t = t.In(e.Location)
+		}
 	}
 
 	return schedule.Next(t), nil
@@ -97,8 +108,10 @@ func (b ByTimeAsc) RemoveCons(i int) ByTimeAsc {
 }
 
 // RemoveLin removes the ith element in linear time, preserves order
-func (b ByTimeAsc) RemoveLin(i int) {
+func (b ByTimeAsc) RemoveLin(i int) ByTimeAsc {
+	tmp := b[:0]
 	copy(b[i:], b[i+1:]) // Shift a[i+1:] left one index.
 	b[len(b)-1] = nil    // Erase last element (write zero value).
-	b = b[:len(b)-1]     // Truncate slice.
+	tmp = b[:len(b)-1]   // Truncate slice.
+	return tmp
 }

@@ -2,13 +2,8 @@ package cron
 
 import "time"
 
-// WithPeriod sets a minimum period for the executor.
-func WithPeriod(period time.Duration) Option {
-	return func(e *Executor) error {
-		e.period = period
-		return nil
-	}
-}
+// Option is a constructor function
+type Option func(*Executor) error
 
 // WithTab sets a storage backend for the executor
 func WithTab(tab Tab) Option {
@@ -30,6 +25,16 @@ func WithLog(log chan Log) Option {
 func WithError(errors chan error) Option {
 	return func(e *Executor) error {
 		e.errors = errors
+		return nil
+	}
+}
+
+// WithLocation sets the location.
+//
+// Location defaults to time.Local.
+func WithLocation(location time.Location) Option {
+	return func(e *Executor) error {
+		e.location = &location
 		return nil
 	}
 }

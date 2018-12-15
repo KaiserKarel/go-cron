@@ -28,10 +28,10 @@ func TestExecutor_3s(t *testing.T) {
 
 	executor.Register("test", testfunc)
 
-	executor.Add(&cron.Entry{
+	executor.Add(cron.Entry{
 		ID:         "testjob",
 		Expression: "@every 3s",
-		Job:        "test",
+		Routine:    "test",
 		Args: map[string]interface{}{
 			"test": "test",
 		},
@@ -65,10 +65,10 @@ func TestExecutor_1s(t *testing.T) {
 
 	executor.Register("test", testfunc)
 
-	executor.Add(&cron.Entry{
+	executor.Add(cron.Entry{
 		ID:         "testjob",
 		Expression: "@every 1s",
-		Job:        "test",
+		Routine:    "test",
 		Args: map[string]interface{}{
 			"test": "test",
 		},

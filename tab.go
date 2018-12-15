@@ -7,13 +7,13 @@ import "sync"
 // Tab (crontab is short for cron table) defines the storage backend for the scheduler.
 type Tab interface {
 	// Stores a new entry
-	Put(*Entry) error
+	Put(Entry) error
 
 	// Returns all entries
 	All() ([]*Entry, error)
 
 	// Removes a single entry
-	Remove(*Entry) error
+	Remove(Entry) error
 
 	// Clears all entries
 	Clear() error
@@ -34,16 +34,16 @@ type MemoryTab struct {
 }
 
 // Put overrides an entry in the tab.
-func (m *MemoryTab) Put(e *Entry) error {
+func (m *MemoryTab) Put(e Entry) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.entries[e.ID] = e
+	m.entries[e.ID] = &e
 	return nil
 }
 
 // Remove deletes an entry from the tab.
-func (m *MemoryTab) Remove(e *Entry) error {
+func (m *MemoryTab) Remove(e Entry) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

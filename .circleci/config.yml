@@ -1,0 +1,45 @@
+# Check https://circleci.com/docs/2.0/language-go/ for more details
+version: 2
+
+jobs:
+  # build runs a full spec of tests. (It is named build because else you cannot run it locally)
+  build:
+    docker:
+      # specify the version
+      - image: kaiserkarel/go-ci:latest
+        environment:
+          GO111MODULE: "on"
+    working_directory: ~/go/src/github.com/kaiserkarel/go-cron  
+    steps:
+      - checkout
+      
+      - restore_cache:
+          keys:
+            - go-mod-v1-{{ checksum "go.sum" }}
+
+      - run:
+          name: generate code.
+          command: |
+            go get github.com/golang/mock/mockgen
+            go generate ./...
+
+      - save_cache:
+          key: go-mod-v1-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"      
+
+      - run:
+          name: run tests
+          command: |
+            go test ./... -v -race
+
+workflows:
+  version: 2
+  test-and-build-image:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - master
+                - development
