@@ -13,7 +13,7 @@ import (
 
 var (
 	// ErrJobExists is returned by the executor instance if the provided job ID is present in the registry.
-	ErrJobExists = errors.New("job already registerd")
+	ErrJobExists = errors.New("job already registered")
 	// ErrJobNotExists is returned/used by the executor if a job is not registered but called/queried.
 	ErrJobNotExists = errors.New("job not registered")
 

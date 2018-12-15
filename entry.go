@@ -83,7 +83,7 @@ func (b ByTimeAsc) Less(i, j int) bool {
 }
 func (b ByTimeAsc) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 
-// Unique ensures all items are unique by removing entries with duplicate IDs, this destorys ordering.
+// Unique ensures all items are unique by removing entries with duplicate IDs, this kills the ordering.
 func (b ByTimeAsc) Unique() ByTimeAsc {
 	set := make(map[string]struct{})
 	var uniques = b

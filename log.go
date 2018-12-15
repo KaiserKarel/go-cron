@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// Log is emmitted after a job has run
+// Log is emitted after a job has run
 type Log struct {
 	ID      string
 	Entry   Entry
