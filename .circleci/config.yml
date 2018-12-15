@@ -2,8 +2,7 @@
 version: 2
 
 jobs:
-  # build runs a full spec of tests. (It is named build because else you cannot run it locally)
-  build:
+  test:
     docker:
       # specify the version
       - image: kaiserkarel/go-ci:latest
@@ -37,7 +36,7 @@ workflows:
   version: 2
   test-and-build-image:
     jobs:
-      - build:
+      - test:
           filters:
             branches:
               only:
