@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"sort"
 	"time"
 )
 
@@ -114,4 +115,26 @@ func (b ByTimeAsc) RemoveLin(i int) ByTimeAsc {
 	b[len(b)-1] = nil    // Erase last element (write zero value).
 	tmp = b[:len(b)-1]   // Truncate slice.
 	return tmp
+}
+
+// keys returns the ordered keys from the map, based on ByTimeAsc ordering
+func keys(entries map[string]*Entry) []string {
+	var entriesslcie []*Entry
+	var res []string
+
+	for _, v := range entries {
+		entriesslcie = append(entriesslcie, v)
+	}
+
+	sort.Sort(ByTimeAsc(entriesslcie))
+
+	for _, v := range entriesslcie {
+		res = append(res, v.ID)
+	}
+	return res
+}
+
+type Update struct {
+	UpdateType
+	Entry
 }

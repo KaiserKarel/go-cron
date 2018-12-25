@@ -1,9 +1,5 @@
 package cron
 
-import (
-	"context"
-)
-
 // ErrRepeatable indicates the job should be retried immediately.
 type ErrRepeatable error
 
@@ -17,4 +13,4 @@ type ErrPermanentFailure error
 type ErrCronFailure error
 
 // Routine is a registerable function. Passed arguments are obtained from the Entry.
-type Routine func(ctx context.Context, args map[string]interface{}) error
+type Routine func(ctx Context, args map[string]interface{}) error

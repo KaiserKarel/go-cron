@@ -46,8 +46,8 @@ func CancelAll() {
 }
 
 // Remove an entry from the global executor tab. Does not cancel running job nor removes it from the current queue.
-func Remove(entry Entry) error {
-	return executor.Remove(entry)
+func Remove(ID string) error {
+	return executor.Remove(ID)
 }
 
 // GetLog returns the global executor log channel

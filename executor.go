@@ -3,7 +3,6 @@ package cron
 import (
 	"context"
 	"runtime"
-	"sort"
 	"sync"
 	"time"
 
@@ -21,14 +20,15 @@ var (
 	DefaultLocation = time.UTC
 )
 
+type ErrNotFound error
+
 // New is the constructor for executor
 func New(opts ...Option) (*Executor, error) {
 	e := &Executor{
 		registry: make(map[string]Routine),
 		context:  make(map[string]Context),
-		entries:  []*Entry{},
+		entries:  map[string]*Entry{},
 		stop:     make(chan struct{}),
-		added:    make(chan struct{}),
 	}
 
 	for _, opt := range opts {
@@ -36,6 +36,10 @@ func New(opts ...Option) (*Executor, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if e.refresh == nil {
+		e.refresh = make(chan Update, 100)
 	}
 
 	if e.errors == nil {
@@ -70,11 +74,12 @@ type Executor struct {
 	context map[string]Context
 
 	emu     sync.RWMutex
-	entries ByTimeAsc
+	entries map[string]*Entry
+	ordered []string
+	refresh chan Update
 
 	errors   chan error
 	stop     chan struct{}
-	added    chan struct{}
 	log      chan Log
 	location *time.Location
 }
@@ -102,17 +107,16 @@ func (e *Executor) Start() error {
 
 	e.running = true
 	e.mu.Unlock()
+	e.emu.Lock()
+	var err error
+
+	e.entries, err = e.tab.All()
+	if err != nil {
+		return err
+	}
+	e.emu.Unlock()
 
 	for {
-		// first get all (persistently) stored entries
-		e.emu.Lock()
-		var err error
-		e.entries, err = e.tab.All()
-		if err != nil {
-			return err
-		}
-		e.emu.Unlock()
-
 		now := e.now()
 
 		// calculate nextRuns
@@ -124,24 +128,46 @@ func (e *Executor) Start() error {
 			}
 		}
 
+		// order by nextrun and start a timer
+		e.ordered = keys(e.entries)
+
 		var timer *time.Timer
-		timer = time.NewTimer(e.entries[0].NextRun.Sub(now))
+		if len(e.entries) == 0 {
+			timer = time.NewTimer(time.Hour)
+		} else {
+			timer = time.NewTimer(e.entries[e.ordered[0]].NextRun.Sub(now))
+		}
 
 		select {
-
+		// when the Stop method is called
 		case <-e.stop:
 			timer.Stop()
+			e.running = false
 			return nil
 
-		case <-e.added:
-			// if a new entry is added, we return to obtaining all entries, resorting and creating a new timer
-			continue
+		// when the tab sends on the Refresh channel; either a new/altered item or an update.
+		case update := <-e.tab.Refresh():
+			switch update.UpdateType {
+			case NewAltered:
+				e.entries[update.ID] = &update.Entry
+			case Deleted:
+				e.emu.Lock()
+				delete(e.entries, update.ID)
+				e.emu.Unlock()
+			}
+			e.refresh <- update // TODO make this leaky
+			continue            // continue the loop to ensure we restart the timer.
+
+		// When the next cronjob is ready
 		case <-timer.C:
 			e.emu.RLock()
-			e.entries = e.entries.Unique()
-			sort.Sort(e.entries)
 
-			for _, entry := range e.entries {
+			for _, ID := range e.ordered {
+				entry, exists := e.entries[ID]
+				if !exists {
+					continue
+				}
+
 				select {
 				case <-e.stop:
 					return nil
@@ -174,13 +200,6 @@ func (e *Executor) Add(entry Entry) error {
 	if err != nil {
 		return err
 	}
-
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	if e.running {
-		e.added <- struct{}{}
-	}
 	return nil
 }
 
@@ -192,13 +211,7 @@ func (e *Executor) Stop() {
 // StopAll stops the cron executor and all running cronjobs.
 func (e *Executor) StopAll() {
 	e.stop <- struct{}{}
-
-	e.cmu.RLock()
-	defer e.cmu.RUnlock()
-
-	for _, ctx := range e.context {
-		ctx.Cancel()
-	}
+	e.CancelAll()
 }
 
 // CancelAll stops all running cronjobs
@@ -212,8 +225,12 @@ func (e *Executor) CancelAll() {
 }
 
 // Remove an entry from the tab. Does not cancel running job nor removes it from the current queue.
-func (e *Executor) Remove(entry Entry) error {
-	return e.tab.Remove(entry)
+func (e *Executor) Remove(ID string) error {
+	e.emu.Lock()
+	defer e.emu.Unlock()
+	delete(e.entries, ID)
+
+	return e.tab.Remove(ID)
 }
 
 // Log returns the log channel
@@ -238,17 +255,23 @@ func (e *Executor) Err() chan error {
 	return e.errors
 }
 
-// Cancel a specific entry while running. If it is not running, Cancel is a noop.
-func (e *Executor) Cancel(ID string) {
+// Refresh blocks on the refresh channel,which returns updates on the internal executor queue
+func (e *Executor) Refresh() <-chan Update {
+	return e.refresh
+}
+
+// Cancel a specific entry while running. If it is not running, Cancel returns ErrNotFound
+func (e *Executor) Cancel(ID string) error {
 	e.cmu.RLock()
 	defer e.cmu.RUnlock()
 
 	var ctx Context
 	var exists bool
 	if ctx, exists = e.context[ID]; !exists {
-		return
+		return ErrNotFound(errors.New("job not found"))
 	}
 	ctx.Cancel()
+	return nil
 }
 
 func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
@@ -314,7 +337,7 @@ func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
 				e.rmu.Lock()
 				defer e.rmu.Unlock()
 
-				tabErr := e.tab.Remove(entry)
+				tabErr := e.tab.Remove(entry.ID)
 				if tabErr != nil {
 					e.errors <- tabErr
 				}
