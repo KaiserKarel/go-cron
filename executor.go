@@ -142,7 +142,9 @@ func (e *Executor) Start() error {
 		// when the Stop method is called
 		case <-e.stop:
 			timer.Stop()
+			e.mu.Lock()
 			e.running = false
+			e.mu.Unlock()
 			return nil
 
 		// when the tab sends on the Refresh channel; either a new/altered item or an update.
