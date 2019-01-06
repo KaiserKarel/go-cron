@@ -6,3 +6,5 @@
 
 ### configurable cronjobs with persistence
 See the godocs for documentation. 
+
+This library is heavily inspired/borrows from https://github.com/robfig/cron. The main reason for it's creation was the need to serialize and store jobs, thus closures could not be used.
