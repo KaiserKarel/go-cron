@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"context"
 	"runtime"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ func TestExecutor_Register(t *testing.T) {
 	executor, err := New()
 	require.NoError(t, err)
 
-	rt := func(ctx Context, args map[string]interface{}) error {
+	rt := func(ctx context.Context, args map[string]interface{}) error {
 		return nil
 	}
 
@@ -77,7 +78,7 @@ func TestExecutor_CancelAll(t *testing.T) {
 
 	time.Sleep(time.Millisecond)
 
-	rt := func(ctx Context, args map[string]interface{}) error {
+	rt := func(ctx context.Context, args map[string]interface{}) error {
 		return nil
 	}
 
@@ -107,7 +108,7 @@ func TestExecutor_Cancel(t *testing.T) {
 
 	canceled := make(chan bool)
 	started := make(chan struct{})
-	rt := func(ctx Context, args map[string]interface{}) error {
+	rt := func(ctx context.Context, args map[string]interface{}) error {
 		// signals the job has started
 		started <- struct{}{}
 

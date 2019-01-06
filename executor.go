@@ -26,7 +26,7 @@ type ErrNotFound error
 func New(opts ...Option) (*Executor, error) {
 	e := &Executor{
 		registry: make(map[string]Routine),
-		context:  make(map[string]Context),
+		context:  make(map[string]context.Context),
 		entries:  map[string]*Entry{},
 		stop:     make(chan struct{}),
 	}
@@ -71,7 +71,7 @@ type Executor struct {
 	tab      Tab
 
 	cmu     sync.RWMutex
-	context map[string]Context
+	context map[string]context.Context
 
 	emu     sync.RWMutex
 	entries map[string]*Entry
@@ -222,7 +222,8 @@ func (e *Executor) CancelAll() {
 	defer e.cmu.RUnlock()
 
 	for _, ctx := range e.context {
-		ctx.Cancel()
+		cf := CancelFromContext(ctx)
+		cf()
 	}
 }
 
@@ -267,12 +268,13 @@ func (e *Executor) Cancel(ID string) error {
 	e.cmu.RLock()
 	defer e.cmu.RUnlock()
 
-	var ctx Context
+	var ctx context.Context
 	var exists bool
 	if ctx, exists = e.context[ID]; !exists {
 		return ErrNotFound(errors.New("job not found"))
 	}
-	ctx.Cancel()
+	cf := CancelFromContext(ctx)
+	cf()
 	return nil
 }
 
@@ -294,18 +296,19 @@ func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
 
 	// if the ctx does exist, the job has already ran before and might still be running.
 	if exists {
+		cf := CancelFromContext(ctx)
+
 		switch entry.Policy {
 		case SingleInstanceOnly:
-			ctx.Cancel()
-
+			cf()
 			// wait for the job to stop running
-			for ctx.Running() {
+			for ContextRunning(ctx) {
 				runtime.Gosched()
 			}
 		case CancelRunning:
-			ctx.Cancel()
+			cf()
 		case SkipIfRunning:
-			if ctx.Running() {
+			if ContextRunning(ctx) {
 				return
 			}
 		// default equates to RunParallel.
@@ -315,8 +318,7 @@ func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
 	}
 
 	back := backoff.NewExponentialBackOff()
-	ctx = FromContext(context.Background(), entry)
-
+	ctx, cf := NewContext(context.Background(), entry)
 	// Setting the new context
 	e.cmu.Lock()
 	e.context[entry.ID] = ctx
@@ -325,10 +327,10 @@ func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
 	// try the job with exponential backoff
 	err := backoff.Retry(
 		func() error {
-			ctx.Start()
+			ContextStart(ctx)
 			var err error
 			err = routine(ctx, entry.Args)
-			defer ctx.Cancel()
+			defer cf()
 
 			switch err.(type) {
 			case ErrRepeatable:
@@ -358,7 +360,7 @@ func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
 	log := newLog(entry, now)
 	log.Ended = time.Now()
 	log.Err = err
-	log.Report = ctx.Report()
+	log.Report = ReportFromContext(ctx)
 
 	select {
 	case e.log <- log:

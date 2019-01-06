@@ -1,6 +1,7 @@
 package cron_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -19,7 +20,7 @@ func TestExecutor_3s(t *testing.T) {
 	require.NoError(t, err)
 
 	watchchan := make(chan string)
-	testfunc := func(ctx cron.Context, args map[string]interface{}) error {
+	testfunc := func(ctx context.Context, args map[string]interface{}) error {
 		fmt.Println("called", time.Now())
 		watchchan <- args["test"].(string)
 		return nil
@@ -56,7 +57,7 @@ func TestExecutor_1s(t *testing.T) {
 	require.NoError(t, err)
 
 	watchchan := make(chan string)
-	testfunc := func(ctx cron.Context, args map[string]interface{}) error {
+	testfunc := func(ctx context.Context, args map[string]interface{}) error {
 		fmt.Println("called", time.Now())
 		watchchan <- args["test"].(string)
 		return nil
