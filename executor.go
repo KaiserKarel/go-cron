@@ -328,7 +328,7 @@ func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
 			ctx.Start()
 			var err error
 			err = routine(ctx, entry.Args)
-			ctx.Cancel()
+			defer ctx.Cancel()
 
 			switch err.(type) {
 			case ErrRepeatable:
