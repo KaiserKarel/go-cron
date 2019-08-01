@@ -2,24 +2,31 @@ package cron
 
 import (
 	"context"
+	"errors"
 	"runtime"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
-	"github.com/pkg/errors"
+
+	"golang.org/x/xerrors"
 )
 
 var (
 	// ErrJobExists is returned by the executor instance if the provided job ID is present in the registry.
-	ErrJobExists = errors.New("job already registered")
+	ErrJobExists = xerrors.New("job already registered")
 	// ErrJobNotExists is returned/used by the executor if a job is not registered but called/queried.
-	ErrJobNotExists = errors.New("job not registered")
+	ErrJobNotExists = xerrors.New("job not registered")
+	// ErrJobHadRunning  is define job had running warning
+	ErrJobHadRunning = xerrors.New("executor already running")
+	// ErrJobNotFound  is not found defined job
+	ErrJobNotFound = errors.New("job not found")
 
 	// DefaultLocation is the default locale of the executor.
 	DefaultLocation = time.UTC
 )
 
+// ErrNotFound  error alias
 type ErrNotFound error
 
 // New is the constructor for executor
@@ -102,7 +109,7 @@ func (e *Executor) Start() error {
 	e.mu.Lock()
 	if e.running {
 		e.mu.Unlock()
-		return errors.New("executor already running")
+		return ErrJobHadRunning
 	}
 
 	e.running = true
@@ -124,7 +131,7 @@ func (e *Executor) Start() error {
 			var err error
 			entry.NextRun, err = entry.Next(now)
 			if err != nil {
-				e.errors <- errors.Wrapf(err, "invalid cron expression for ID: %s", entry.ID)
+				e.errors <- xerrors.Errorf("invalid cron expression for ID: %s in err: %v", entry.ID, err)
 			}
 		}
 
@@ -271,13 +278,13 @@ func (e *Executor) Cancel(ID string) error {
 	var ctx context.Context
 	var exists bool
 	if ctx, exists = e.context[ID]; !exists {
-		return ErrNotFound(errors.New("job not found"))
+		return ErrNotFound(ErrJobNotFound)
 	}
 	cf := CancelFromContext(ctx)
 	cf()
 	return nil
 }
-
+ 
 func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
 	// Handle job panics
 	defer func() {
@@ -285,7 +292,7 @@ func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
-			err := errors.Errorf("cron: panic running job: %v\n%s", r, buf)
+			err := xerrors.Errorf("cron: panic running job: %v\n%s", r, buf)
 			e.errors <- err
 		}
 	}()
@@ -302,7 +309,7 @@ func (e *Executor) runJob(routine Routine, entry Entry, now time.Time) {
 		case SingleInstanceOnly:
 			cf()
 			// wait for the job to stop running
-			for ContextRunning(ctx) {
+			if ContextRunning(ctx) {
 				runtime.Gosched()
 			}
 		case CancelRunning:
